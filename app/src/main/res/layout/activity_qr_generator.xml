@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/main_background">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="24dp">
+
+        <TextView
+            android:id="@+id/tvLessonName"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Mobil Programlama"
+            android:textSize="28sp"
+            android:textStyle="bold"
+            android:textColor="@color/white"
+            android:layout_marginBottom="4dp"/>
+
+        <TextView
+            android:id="@+id/tvDateTime"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="15 Nisan 2024 | 10:00"
+            android:textColor="@color/text_sub"
+            android:layout_marginBottom="32dp"/>
+
+        <androidx.cardview.widget.CardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            app:cardCornerRadius="24dp"
+            app:cardElevation="12dp"
+            app:cardBackgroundColor="@color/white">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="32dp"
+                android:gravity="center">
+
+                <ImageView
+                    android:id="@+id/ivQrCode"
+                    android:layout_width="250dp"
+                    android:layout_height="250dp"
+                    android:scaleType="fitCenter"
+                    android:contentDescription="Dynamic QR Code"/>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="KAREKOD OTOMATİK YENİLENİYOR"
+                    android:textSize="12sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/brand_purple"
+                    android:layout_marginTop="24dp"
+                    android:letterSpacing="0.1"/>
+
+                <ProgressBar
+                    android:id="@+id/pbTimer"
+                    style="?android:attr/progressBarStyleHorizontal"
+                    android:layout_width="match_parent"
+                    android:layout_height="8dp"
+                    android:layout_marginTop="16dp"
+                    android:progress="100"
+                    android:progressTint="@color/brand_purple"/>
+            </LinearLayout>
+        </androidx.cardview.widget.CardView>
+
+        <!-- Web QR İnovasyon Butonu -->
+        <androidx.appcompat.widget.AppCompatButton
+            android:id="@+id/btnOpenWebQR"
+            android:layout_width="match_parent"
+            android:layout_height="60dp"
+            android:text="BİLGİSAYARDA GÖSTER (WEB QR)"
+            android:textColor="@color/white"
+            android:background="@drawable/gradient_background"
+            android:backgroundTint="@color/brand_blue"
+            android:textStyle="bold"
+            android:layout_marginTop="40dp"
+            app:cornerRadius="16dp"
+            android:elevation="4dp"/>
+
+        <androidx.appcompat.widget.AppCompatButton
+            android:id="@+id/btnViewList"
+            android:layout_width="match_parent"
+            android:layout_height="60dp"
+            android:text="ANLIK ÖĞRENCİ LİSTESİ"
+            android:textColor="@color/brand_purple"
+            android:background="@drawable/gradient_background"
+            android:backgroundTint="@color/white"
+            android:textStyle="bold"
+            android:layout_marginTop="16dp"
+            app:cornerRadius="16dp"/>
+
+    </LinearLayout>
+</RelativeLayout>

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "841335684010",
+    "project_id": "qr-kodlu-yoklama-takip-sistemi",
+    "storage_bucket": "qr-kodlu-yoklama-takip-sistemi.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:841335684010:android:e676b06ac5f89b9d8c09d3",
+        "android_client_info": {
+          "package_name": "com.example.qr_kodlu_yoklama_sistemi"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCNJhi7Ed2ggJdBjSLsFxXVJ0_-UU2lwHo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
