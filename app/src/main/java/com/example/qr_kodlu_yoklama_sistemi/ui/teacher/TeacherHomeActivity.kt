@@ -24,7 +24,7 @@ class TeacherHomeActivity : AppCompatActivity() {
     private val auth = FirebaseAuth.getInstance()
     private lateinit var lessonAdapter: LessonAdapter
     private val lessonList = mutableListOf<Map<String, Any>>()
-    private var teacherUniversity: String = "Üniversite Bilgisi Yok"
+    private var teacherUniversity: String = ""
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -35,13 +35,8 @@ class TeacherHomeActivity : AppCompatActivity() {
         fetchTeacherProfile()
         fetchLessons()
 
-        binding.cardStartAttendance.setOnClickListener {
-            showAddLessonDialog()
-        }
-
-        binding.fabAddLesson.setOnClickListener {
-            showAddLessonDialog()
-        }
+        binding.cardStartAttendance.setOnClickListener { showAddLessonDialog() }
+        binding.fabAddLesson.setOnClickListener { showAddLessonDialog() }
     }
 
     private fun fetchTeacherProfile() {
@@ -49,8 +44,8 @@ class TeacherHomeActivity : AppCompatActivity() {
         db.collection("Users").document(uid).get().addOnSuccessListener { doc ->
             if (doc.exists()) {
                 val name = doc.getString("fullName") ?: "Hocam"
-                teacherUniversity = doc.getString("university") ?: "Bilinmeyen Üniversite"
-                binding.tvTeacherWelcome.text = "Merhaba, $name"
+                teacherUniversity = doc.getString("university") ?: ""
+                binding.tvTeacherWelcome.text = getString(R.string.welcome_teacher, name)
             }
         }
     }
@@ -61,7 +56,6 @@ class TeacherHomeActivity : AppCompatActivity() {
             intent.putExtra("LESSON_ID", lessonId)
             intent.putExtra("LESSON_NAME", lessonName)
             startActivity(intent)
-            overridePendingTransition(R.anim.fade_in, android.R.anim.fade_out)
         }
         binding.rvTeacherLessons.layoutManager = LinearLayoutManager(this)
         binding.rvTeacherLessons.adapter = lessonAdapter
@@ -69,10 +63,8 @@ class TeacherHomeActivity : AppCompatActivity() {
 
     private fun fetchLessons() {
         val teacherId = auth.currentUser?.uid ?: return
-        db.collection("Lessons")
-            .whereEqualTo("teacherId", teacherId)
-            .addSnapshotListener { snapshots, e ->
-                if (e != null) return@addSnapshotListener
+        db.collection("Lessons").whereEqualTo("teacherId", teacherId)
+            .addSnapshotListener { snapshots, _ ->
                 lessonList.clear()
                 snapshots?.let {
                     for (doc in it) {
@@ -91,43 +83,41 @@ class TeacherHomeActivity : AppCompatActivity() {
         val entries = ArrayList<BarEntry>()
         val labels = ArrayList<String>()
 
-        // Mock data for last 5 lessons performance
-        val mockData = listOf(65f, 88f, 72f, 95f, 80f)
-        val mockLabels = listOf("Pzt", "Sal", "Çar", "Per", "Cum")
+        if (lessonList.isEmpty()) return
 
-        for (i in mockData.indices) {
-            entries.add(BarEntry(i.toFloat(), mockData[i]))
-            labels.add(mockLabels[i])
+        // Son 5 dersin katılım verisini Firestore'dan asenkron alıp grafiğe yansıtıyoruz
+        lessonList.take(5).forEachIndexed { index, lesson ->
+            val lessonId = lesson["lessonId"].toString()
+            val lessonName = lesson["lessonName"].toString()
+            
+            db.collection("Attendances").whereEqualTo("lessonId", lessonId).get()
+                .addOnSuccessListener { attendances ->
+                    entries.add(BarEntry(index.toFloat(), attendances.size().toFloat()))
+                    labels.add(if (lessonName.length > 5) lessonName.take(5) else lessonName)
+                    
+                    if (index == lessonList.take(5).size - 1 || index == entries.size -1) {
+                        refreshChart(entries, labels)
+                    }
+                }
         }
+    }
 
-        val dataSet = BarDataSet(entries, "Katılım Oranı (%)")
+    private fun refreshChart(entries: List<BarEntry>, labels: List<String>) {
+        val dataSet = BarDataSet(entries, "Öğrenci Sayısı")
         dataSet.colors = listOf(Color.parseColor("#1A73E8"), Color.parseColor("#6C63FF"))
         dataSet.valueTextColor = Color.GRAY
-        dataSet.valueTextSize = 10f
-
-        val barData = BarData(dataSet)
-        barData.barWidth = 0.6f
-
+        
         binding.barChart.apply {
-            data = barData
+            data = BarData(dataSet)
             description.isEnabled = false
-            legend.isEnabled = false
-            
             xAxis.apply {
                 position = XAxis.XAxisPosition.BOTTOM
                 valueFormatter = IndexAxisValueFormatter(labels)
                 setDrawGridLines(false)
-                granularity = 1f
                 textColor = Color.GRAY
             }
-            
-            axisLeft.apply {
-                axisMinimum = 0f
-                axisMaximum = 100f
-                textColor = Color.GRAY
-            }
+            axisLeft.textColor = Color.GRAY
             axisRight.isEnabled = false
-            
             animateY(1000)
             invalidate()
         }
@@ -135,16 +125,14 @@ class TeacherHomeActivity : AppCompatActivity() {
 
     private fun showAddLessonDialog() {
         val builder = AlertDialog.Builder(this)
-        builder.setTitle("Yeni Ders Başlat")
+        builder.setTitle("Yeni Ders")
         val input = EditText(this)
         input.hint = "Ders Adı"
         builder.setView(input)
-
-        builder.setPositiveButton("Başlat") { _, _ ->
+        builder.setPositiveButton("Ekle") { _, _ ->
             val name = input.text.toString().trim()
             if (name.isNotEmpty()) startInstantAttendance(name)
         }
-        builder.setNegativeButton("İptal", null)
         builder.show()
     }
 
@@ -154,9 +142,7 @@ class TeacherHomeActivity : AppCompatActivity() {
             "lessonName" to lessonName,
             "teacherId" to teacherId,
             "university" to teacherUniversity,
-            "createdAt" to com.google.firebase.Timestamp.now(),
-            "activeToken" to "",
-            "webDisplayActive" to false
+            "createdAt" to com.google.firebase.Timestamp.now()
         )
         db.collection("Lessons").add(lessonData).addOnSuccessListener { doc ->
             val intent = Intent(this, QRGeneratorActivity::class.java)

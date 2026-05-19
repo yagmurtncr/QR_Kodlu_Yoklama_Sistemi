@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>QR Kodlu Yoklama</title>
+  <style>
+    :root {
+      --bg: #0b1020;
+      --card: rgba(16, 24, 40, 0.84);
+      --text: #e8eefc;
+      --muted: #91a4c7;
+      --accent: #4da3ff;
+      --accent2: #7c5cff;
+      --good: #19c37d;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      min-height: 100vh;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top left, rgba(77,163,255,0.25), transparent 28%),
+        radial-gradient(circle at bottom right, rgba(124,92,255,0.25), transparent 30%),
+        linear-gradient(160deg, #060913 0%, #0b1020 45%, #09111f 100%);
+      display: grid;
+      place-items: center;
+      padding: 24px;
+    }
+    .wrap {
+      width: min(960px, 100%);
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 24px;
+      align-items: start;
+    }
+    .hero, .panel {
+      background: var(--card);
+      border: 1px solid rgba(255,255,255,0.09);
+      border-radius: 28px;
+      box-shadow: 0 24px 80px rgba(0,0,0,0.35);
+      backdrop-filter: blur(12px);
+      overflow: hidden;
+    }
+    .hero { padding: 28px; }
+    .panel { padding: 24px; }
+    h1 { margin: 0 0 10px; font-size: clamp(2rem, 4vw, 3.7rem); line-height: 1.05; }
+    p { margin: 0; color: var(--muted); line-height: 1.6; }
+    .chip {
+      display: inline-flex; align-items: center; gap: 8px;
+      margin-bottom: 18px; padding: 10px 14px; border-radius: 999px;
+      background: rgba(77,163,255,0.12); color: #b8d9ff; font-size: 0.92rem;
+    }
+    .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--good); box-shadow: 0 0 0 6px rgba(25,195,125,0.15); }
+    .meta {
+      margin-top: 18px; display: grid; gap: 10px;
+      grid-template-columns: repeat(2, minmax(0,1fr));
+    }
+    .box {
+      padding: 14px 16px; border-radius: 18px; background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.07);
+    }
+    .label { color: var(--muted); font-size: 0.86rem; margin-bottom: 6px; }
+    .value { font-weight: 700; word-break: break-all; }
+    .qrBox {
+      display: grid; place-items: center; gap: 18px; padding: 12px;
+    }
+    .qrFrame {
+      width: min(100%, 380px); aspect-ratio: 1;
+      display: grid; place-items: center; padding: 18px;
+      background: rgba(255,255,255,0.95); border-radius: 24px;
+      box-shadow: inset 0 0 0 1px rgba(0,0,0,0.08);
+    }
+    #qr { width: 100%; height: 100%; display: grid; place-items: center; }
+    .status {
+      padding: 12px 16px; border-radius: 14px; font-size: 0.95rem;
+      background: rgba(25,195,125,0.14); color: #baf4d8; text-align: center;
+    }
+    .warning {
+      padding: 12px 16px; border-radius: 14px; font-size: 0.95rem;
+      background: rgba(255,170,0,0.14); color: #ffd899; text-align: center;
+    }
+    code {
+      background: rgba(255,255,255,0.08); padding: 3px 6px; border-radius: 8px;
+      word-break: break-all;
+    }
+    @media (max-width: 860px) {
+      .wrap { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <section class="hero">
+      <div class="chip"><span class="dot"></span> Canlı QR Akışı</div>
+      <h1>Projeksiyonda aç, QR anlık yenilensin.</h1>
+      <p>
+        Bu sayfa Firestore'daki <code>Lessons/{lessonId}</code> belgesini dinler ve
+        <code>activeToken</code> değiştikçe QR kodu otomatik günceller.
+      </p>
+
+      <div class="meta">
+        <div class="box">
+          <div class="label">Ders ID</div>
+          <div class="value" id="lessonIdText">-</div>
+        </div>
+        <div class="box">
+          <div class="label">Ders Adı</div>
+          <div class="value" id="lessonNameText">-</div>
+        </div>
+        <div class="box">
+          <div class="label">Aktif Token</div>
+          <div class="value" id="tokenText">Bekleniyor...</div>
+        </div>
+        <div class="box">
+          <div class="label">Durum</div>
+          <div class="value" id="stateText">Bağlanıyor...</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="qrBox">
+        <div class="qrFrame">
+          <div id="qr"></div>
+        </div>
+        <div class="status" id="statusBox">Firestore dinleniyor...</div>
+        <div class="warning" id="hintBox">Sayfayı açtıktan sonra öğretmendeki "Web QR" butonuna bas.</div>
+      </div>
+    </section>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+  <script>
+    const params = new URLSearchParams(location.search);
+    const lessonId = params.get('lessonId');
+
+    document.getElementById('lessonIdText').textContent = lessonId || 'lessonId eksik';
+
+    if (!lessonId) {
+      document.getElementById('stateText').textContent = 'lessonId yok';
+      document.getElementById('statusBox').textContent = 'URL örneği: ?lessonId=ABC123';
+      document.getElementById('hintBox').textContent = 'Android tarafı ders ID göndermezse bu sayfa hangi dersi dinleyeceğini bilemez.';
+      throw new Error('lessonId query param required');
+    }
+
+    firebase.initializeApp({
+      apiKey: 'AIzaSyCNJhi7Ed2ggJdBjSLsFxXVJ0_-UU2lwHo',
+      authDomain: 'qr-kodlu-yoklama-takip-sistemi.firebaseapp.com',
+      projectId: 'qr-kodlu-yoklama-takip-sistemi'
+    });
+
+    const db = firebase.firestore();
+    const qrTarget = document.getElementById('qr');
+    const tokenText = document.getElementById('tokenText');
+    const stateText = document.getElementById('stateText');
+    const lessonNameText = document.getElementById('lessonNameText');
+    const statusBox = document.getElementById('statusBox');
+
+    let qr = new QRCode(qrTarget, {
+      text: 'Bekleniyor...',
+      width: 320,
+      height: 320,
+      colorDark: '#0b1020',
+      colorLight: '#ffffff',
+      correctLevel: QRCode.CorrectLevel.M
+    });
+
+    db.collection('Lessons').doc(lessonId).onSnapshot((doc) => {
+      if (!doc.exists) {
+        stateText.textContent = 'Ders bulunamadı';
+        statusBox.textContent = "Firestore'da bu lessonId ile belge yok.";
+        return;
+      }
+
+      const data = doc.data() || {};
+      const token = data.activeToken || 'Bekleniyor...';
+      const lessonName = data.lessonName || 'Ders';
+
+      lessonNameText.textContent = lessonName;
+      tokenText.textContent = token;
+      stateText.textContent = data.webDisplayActive ? 'Web QR aktif' : 'Web QR pasif';
+      statusBox.textContent = data.webDisplayActive
+        ? 'QR canlı güncelleniyor.'
+        : 'Öğretmen panelinde "Bilgisayarda Göster" butonuna basılmalı.';
+
+      qrTarget.innerHTML = '';
+      qr = new QRCode(qrTarget, {
+        text: token,
+        width: 320,
+        height: 320,
+        colorDark: '#0b1020',
+        colorLight: '#ffffff',
+        correctLevel: QRCode.CorrectLevel.M
+      });
+    }, (error) => {
+      stateText.textContent = 'Bağlantı hatası';
+      statusBox.textContent = error.message;
+    });
+  </script>
+</body>
+</html>

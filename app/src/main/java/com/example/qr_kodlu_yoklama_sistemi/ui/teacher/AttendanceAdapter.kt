@@ -24,26 +24,23 @@ class AttendanceAdapter(private var attendanceList: List<Map<String, Any>>) :
         val item = attendanceList[position]
         val context = holder.itemView.context
 
-        // UI IDs updated to match professional layout
-        holder.binding.tvStudentName.text = "Öğrenci: ${item["userId"]}" // In a real app, you'd fetch the name
-        holder.binding.tvStudentId.text = "ID: ${item["userId"]}"
+        // ID'ler item_attendance.xml ile senkronize edildi
+        holder.binding.tvAttendanceLessonName.text = "Öğrenci ID: ${item["userId"]}"
         
         val status = item["status"]?.toString() ?: "GELMEDİ"
-        holder.binding.tvStatusBadge.text = status.uppercase()
+        holder.binding.tvAttendanceStatus.text = status.uppercase()
 
-        // Dynamic Badge Styling
+        // Durum rengini dinamik olarak ayarla
         if (status.equals("Var", ignoreCase = true)) {
-            holder.binding.tvStatusBadge.setTextColor(ContextCompat.getColor(context, R.color.success_green))
-            holder.binding.tvStatusBadge.backgroundTintList = ContextCompat.getColorStateList(context, android.R.color.holo_green_light)?.withAlpha(30)
+            holder.binding.tvAttendanceStatus.setTextColor(ContextCompat.getColor(context, R.color.success_green))
         } else {
-            holder.binding.tvStatusBadge.setTextColor(ContextCompat.getColor(context, R.color.error_red))
-            holder.binding.tvStatusBadge.backgroundTintList = ContextCompat.getColorStateList(context, android.R.color.holo_red_light)?.withAlpha(30)
+            holder.binding.tvAttendanceStatus.setTextColor(ContextCompat.getColor(context, R.color.error_red))
         }
 
         val timestamp = item["timestamp"] as? Timestamp
         val date = timestamp?.toDate()
         val sdf = SimpleDateFormat("HH:mm:ss", Locale.getDefault())
-        holder.binding.tvTime.text = if (date != null) sdf.format(date) else "--:--:--"
+        holder.binding.tvAttendanceDate.text = if (date != null) sdf.format(date) else "--:--:--"
     }
 
     override fun getItemCount(): Int = attendanceList.size

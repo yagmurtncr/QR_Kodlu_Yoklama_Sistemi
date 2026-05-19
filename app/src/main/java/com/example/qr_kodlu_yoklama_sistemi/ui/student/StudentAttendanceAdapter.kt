@@ -4,36 +4,58 @@ import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
 import com.example.qr_kodlu_yoklama_sistemi.databinding.ItemAttendanceBinding
-import com.google.firebase.Timestamp
+import com.google.firebase.firestore.FirebaseFirestore
 import java.text.SimpleDateFormat
 import java.util.*
 
-class StudentAttendanceAdapter(private var list: List<Map<String, Any>>) :
-    RecyclerView.Adapter<StudentAttendanceAdapter.ViewHolder>() {
+class StudentAttendanceAdapter(
+    private var attendanceList: List<Map<String, Any>>
+) : RecyclerView.Adapter<StudentAttendanceAdapter.AttendanceViewHolder>() {
 
-    class ViewHolder(val binding: ItemAttendanceBinding) : RecyclerView.ViewHolder(binding.root)
+    private val db = FirebaseFirestore.getInstance()
+    private val lessonNameCache = mutableMapOf<String, String>()
 
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
+    class AttendanceViewHolder(val binding: ItemAttendanceBinding) : RecyclerView.ViewHolder(binding.root)
+
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): AttendanceViewHolder {
         val binding = ItemAttendanceBinding.inflate(LayoutInflater.from(parent.context), parent, false)
-        return ViewHolder(binding)
+        return AttendanceViewHolder(binding)
     }
 
-    override fun onBindViewHolder(holder: ViewHolder, position: Int) {
-        val item = list[position]
-        // Öğrenci ekranında "Ders ID" veya "Ders Adı" göstermek daha mantıklı
-        holder.binding.tvStudentId.text = "Ders ID: ${item["lessonId"]}"
-        holder.binding.tvStatus.text = "Durum: ${item["status"]}"
+    override fun onBindViewHolder(holder: AttendanceViewHolder, position: Int) {
+        val attendance = attendanceList[position]
 
-        val timestamp = item["timestamp"] as? Timestamp
-        val date = timestamp?.toDate()
-        val sdf = SimpleDateFormat("dd.MM.yyyy HH:mm", Locale.getDefault())
-        holder.binding.tvTime.text = "Tarih: ${if (date != null) sdf.format(date) else "---"}"
+        val lessonName = attendance["lessonName"]?.toString()
+        val lessonId = attendance["lessonId"]?.toString()
+
+        when {
+            !lessonName.isNullOrBlank() -> holder.binding.tvAttendanceLessonName.text = lessonName
+            !lessonId.isNullOrBlank() -> {
+                holder.binding.tvAttendanceLessonName.text = lessonNameCache[lessonId] ?: "Ders Yükleniyor"
+                if (!lessonNameCache.containsKey(lessonId)) {
+                    db.collection("Lessons").document(lessonId).get().addOnSuccessListener { doc ->
+                        lessonNameCache[lessonId] = doc.getString("lessonName") ?: "Ders Adı Yok"
+                        notifyItemChanged(position)
+                    }
+                }
+            }
+            else -> holder.binding.tvAttendanceLessonName.text = "Ders Adı Yok"
+        }
+        
+        val timestamp = attendance["timestamp"] as? com.google.firebase.Timestamp
+        val dateString = timestamp?.let {
+            SimpleDateFormat("dd.MM.yyyy HH:mm", Locale.getDefault()).format(it.toDate())
+        } ?: "Tarih Bilgisi Yok"
+        
+        holder.binding.tvAttendanceDate.text = dateString
+        holder.binding.tvAttendanceStatus.text = "Katıldı"
     }
 
-    override fun getItemCount(): Int = list.size
+    override fun getItemCount(): Int = attendanceList.size
 
     fun updateList(newList: List<Map<String, Any>>) {
-        list = newList
+        attendanceList = newList
+        lessonNameCache.clear()
         notifyDataSetChanged()
     }
 }

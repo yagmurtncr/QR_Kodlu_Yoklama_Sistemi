@@ -1,6 +1,7 @@
 package com.example.qr_kodlu_yoklama_sistemi.ui.auth
 
 import android.os.Bundle
+import android.util.Log
 import android.util.Patterns
 import android.view.View
 import android.widget.ArrayAdapter
@@ -9,6 +10,7 @@ import androidx.appcompat.app.AppCompatActivity
 import com.example.qr_kodlu_yoklama_sistemi.R
 import com.example.qr_kodlu_yoklama_sistemi.databinding.ActivityRegisterBinding
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.FirebaseAuthUserCollisionException
 import com.google.firebase.firestore.FirebaseFirestore
 
 class RegisterActivity : AppCompatActivity() {
@@ -19,21 +21,25 @@ class RegisterActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        binding = ActivityRegisterBinding.inflate(layoutInflater)
-        setContentView(binding.root)
+        try {
+            binding = ActivityRegisterBinding.inflate(layoutInflater)
+            setContentView(binding.root)
 
-        setupUniversitySpinner()
+            setupUniversitySpinner()
 
-        binding.rgRole.setOnCheckedChangeListener { _, checkedId ->
-            binding.etStudentNumber.visibility = if (checkedId == R.id.rbStudent) View.VISIBLE else View.GONE
-        }
+            binding.rgRole.setOnCheckedChangeListener { _, checkedId ->
+                binding.etStudentNumber.visibility = if (checkedId == R.id.rbStudent) View.VISIBLE else View.GONE
+            }
 
-        binding.btnRegister.setOnClickListener {
-            performRegistration()
-        }
-
-        binding.tvBackToLogin.setOnClickListener {
-            finish()
+            binding.btnRegister.setOnClickListener {
+                performRegistration()
+            }
+            
+            binding.tvBackToLogin.setOnClickListener {
+                finish()
+            }
+        } catch (e: Exception) {
+            Log.e("RegisterActivity", "Binding error: ${e.message}")
         }
     }
 
@@ -45,17 +51,25 @@ class RegisterActivity : AppCompatActivity() {
     }
 
     private fun setLoading(isLoading: Boolean) {
+        if (isFinishing) return
         binding.progressBar.visibility = if (isLoading) View.VISIBLE else View.GONE
         binding.registerForm.visibility = if (isLoading) View.GONE else View.VISIBLE
+        binding.btnRegister.isEnabled = !isLoading
     }
 
     private fun performRegistration() {
+        val fullName = binding.etFullName.text.toString().trim()
         val university = binding.spinnerUniversity.selectedItem.toString()
         val email = binding.etEmail.text.toString().trim()
         val password = binding.etPassword.text.toString().trim()
         val passwordConfirm = binding.etPasswordConfirm.text.toString().trim()
-        val role = if (binding.rbTeacher.isChecked) "Teacher" else "Student"
         val studentNumber = binding.etStudentNumber.text.toString().trim()
+        val role = if (binding.rbTeacher.isChecked) "Teacher" else "Student"
+
+        if (fullName.isEmpty()) {
+            binding.etFullName.error = "Ad Soyad gereklidir"
+            return
+        }
 
         if (university == "Üniversite Seçiniz") {
             Toast.makeText(this, "Lütfen bir üniversite seçiniz", Toast.LENGTH_SHORT).show()
@@ -85,26 +99,38 @@ class RegisterActivity : AppCompatActivity() {
         setLoading(true)
 
         auth.createUserWithEmailAndPassword(email, password)
-            .addOnSuccessListener { result ->
-                val user = result.user
-                user?.sendEmailVerification()?.addOnCompleteListener { task ->
-                    if (task.isSuccessful) {
-                        saveUserToFirestore(user.uid, email, university, role, studentNumber)
-                    } else {
-                        setLoading(false)
-                        Toast.makeText(this, "Doğrulama e-postası gönderilemedi", Toast.LENGTH_SHORT).show()
+            .addOnCompleteListener(this) { task ->
+                if (isFinishing) return@addOnCompleteListener
+                
+                if (task.isSuccessful) {
+                    val user = auth.currentUser
+                    user?.sendEmailVerification()?.addOnCompleteListener { verifyTask ->
+                        if (verifyTask.isSuccessful) {
+                            saveUserToFirestore(user.uid, fullName, email, university, role, studentNumber)
+                        } else {
+                            // Eğer onay maili gönderilemezse oluşturulan auth hesabını silerek rollback yap
+                            user.delete().addOnCompleteListener {
+                                setLoading(false)
+                                Toast.makeText(this, "Onay maili gönderilemedi. Hesap silindi.", Toast.LENGTH_SHORT).show()
+                            }
+                        }
                     }
+                } else {
+                    setLoading(false)
+                    val exception = task.exception
+                    val message = when (exception) {
+                        is FirebaseAuthUserCollisionException -> "Bu e-posta zaten kullanımda!"
+                        else -> "Kayıt hatası: ${exception?.localizedMessage}"
+                    }
+                    Toast.makeText(this, message, Toast.LENGTH_LONG).show()
                 }
-            }
-            .addOnFailureListener { e ->
-                setLoading(false)
-                Toast.makeText(this, "Kayıt Hatası: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
             }
     }
 
-    private fun saveUserToFirestore(uid: String, email: String, university: String, role: String, studentNumber: String) {
+    private fun saveUserToFirestore(uid: String, fullName: String, email: String, university: String, role: String, studentNumber: String) {
         val userMap = mutableMapOf<String, Any>(
             "uid" to uid,
+            "fullName" to fullName,
             "email" to email,
             "university" to university,
             "role" to role,
@@ -114,14 +140,23 @@ class RegisterActivity : AppCompatActivity() {
 
         db.collection("Users").document(uid).set(userMap)
             .addOnSuccessListener {
+                if (isFinishing) return@addOnSuccessListener
                 setLoading(false)
-                Toast.makeText(this, "Kayıt Başarılı! Lütfen e-postanızı onaylayın.", Toast.LENGTH_LONG).show()
+                Toast.makeText(this, "Kayıt Başarılı! Lütfen mailinizi onaylayın.", Toast.LENGTH_LONG).show()
                 auth.signOut()
                 finish()
             }
             .addOnFailureListener { e ->
-                setLoading(false)
-                Toast.makeText(this, "Veritabanı Hatası: ${e.message}", Toast.LENGTH_SHORT).show()
+                if (isFinishing) return@addOnFailureListener
+                // Firestore yazılamadıysa oluşturulan auth hesabını sil (rollback)
+                val current = auth.currentUser
+                current?.delete()?.addOnCompleteListener {
+                    setLoading(false)
+                    Toast.makeText(this, "Veritabanı hatası: ${e.message}. Hesap silindi.", Toast.LENGTH_LONG).show()
+                } ?: run {
+                    setLoading(false)
+                    Toast.makeText(this, "Veritabanı hatası: ${e.message}", Toast.LENGTH_LONG).show()
+                }
             }
     }
 }

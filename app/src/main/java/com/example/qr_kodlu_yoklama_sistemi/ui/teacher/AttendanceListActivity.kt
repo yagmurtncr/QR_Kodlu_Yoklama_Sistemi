@@ -1,12 +1,8 @@
 package com.example.qr_kodlu_yoklama_sistemi.ui.teacher
 
-import android.Manifest
-import android.content.pm.PackageManager
 import android.os.Bundle
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.app.ActivityCompat
-import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.qr_kodlu_yoklama_sistemi.databinding.ActivityAttendanceListBinding
 import com.google.firebase.firestore.FirebaseFirestore
@@ -43,11 +39,11 @@ class AttendanceListActivity : AppCompatActivity() {
         fetchAttendanceData()
 
         binding.btnExportPdf.setOnClickListener {
-            if (checkPermission()) exportToPdf() else requestPermission()
+            exportToPdf()
         }
 
         binding.btnExportExcel.setOnClickListener {
-            if (checkPermission()) exportToExcel() else requestPermission()
+            exportToExcel()
         }
 
         binding.btnBack.setOnClickListener { finish() }
@@ -108,15 +104,17 @@ class AttendanceListActivity : AppCompatActivity() {
             val headerRow = sheet.createRow(0)
             headerRow.createCell(0).setCellValue("Öğrenci ID")
             headerRow.createCell(1).setCellValue("Durum")
-            headerRow.createCell(2).setCellValue("Tarih/Saat")
+            headerRow.createCell(2).setCellValue("Ders Adı")
+            headerRow.createCell(3).setCellValue("Tarih/Saat")
 
             var rowNum = 1
             for (item in attendanceList) {
                 val row = sheet.createRow(rowNum++)
                 row.createCell(0).setCellValue(item["userId"]?.toString() ?: "")
                 row.createCell(1).setCellValue(item["status"]?.toString() ?: "Var")
+                row.createCell(2).setCellValue(item["lessonName"]?.toString() ?: lessonName ?: "Genel Ders")
                 val ts = item["timestamp"] as? com.google.firebase.Timestamp
-                row.createCell(2).setCellValue(ts?.toDate()?.toString() ?: "")
+                row.createCell(3).setCellValue(ts?.toDate()?.toString() ?: "")
             }
 
             val path = getExternalFilesDir(null)?.absolutePath
@@ -129,6 +127,4 @@ class AttendanceListActivity : AppCompatActivity() {
         } catch (e: Exception) { Toast.makeText(this, "Excel Hatası: ${e.message}", Toast.LENGTH_SHORT).show() }
     }
 
-    private fun checkPermission() = ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED
-    private fun requestPermission() = ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.WRITE_EXTERNAL_STORAGE), 100)
 }

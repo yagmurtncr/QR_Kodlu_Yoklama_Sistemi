@@ -27,7 +27,16 @@
             android:layout_height="wrap_content"
             android:text="15 Nisan 2024 | 10:00"
             android:textColor="@color/text_sub"
-            android:layout_marginBottom="32dp"/>
+            android:layout_marginBottom="12dp"/>
+
+        <TextView
+            android:id="@+id/tvTeacherCoords"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Konum: -"
+            android:textColor="@color/brand_blue"
+            android:textSize="12sp"
+            android:layout_marginBottom="20dp"/>
 
         <androidx.cardview.widget.CardView
             android:layout_width="match_parent"

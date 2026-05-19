@@ -18,6 +18,8 @@ class AssignLessonActivity : AppCompatActivity() {
         binding = ActivityAssignLessonBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        binding.btnBack.setOnClickListener { finish() }
+
         loadTeachers()
 
         binding.btnSaveAssignment.setOnClickListener {
@@ -31,8 +33,9 @@ class AssignLessonActivity : AppCompatActivity() {
             .get()
             .addOnSuccessListener { documents ->
                 val names = mutableListOf<String>()
+                teachersList.clear()
                 for (doc in documents) {
-                    val name = doc.getString("fullName") ?: "İsimsiz Hoca"
+                    val name = doc.getString("fullName") ?: doc.getString("email") ?: "İsimsiz Hoca"
                     val uid = doc.id
                     teachersList.add(Pair(name, uid))
                     names.add(name)
@@ -41,20 +44,23 @@ class AssignLessonActivity : AppCompatActivity() {
                 adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
                 binding.spinnerTeachers.adapter = adapter
             }
+            .addOnFailureListener {
+                Toast.makeText(this, "Hocalar yüklenemedi: ${it.message}", Toast.LENGTH_SHORT).show()
+            }
     }
 
     private fun saveAssignment() {
         val lessonName = binding.etLessonName.text.toString().trim()
         val minAttendance = binding.etMinAttendance.text.toString().toIntOrNull() ?: 70
         val studentIdsRaw = binding.etStudentIds.text.toString().trim()
-        val teacherIndex = binding.spinnerTeachers.selectedItemPosition
+        val teacherPosition = binding.spinnerTeachers.selectedItemPosition
 
-        if (lessonName.isEmpty() || teacherIndex == -1) {
+        if (lessonName.isEmpty() || teacherPosition == -1) {
             Toast.makeText(this, "Lütfen ders adını ve hocayı seçin!", Toast.LENGTH_SHORT).show()
             return
         }
 
-        val teacherUid = teachersList[teacherIndex].second
+        val teacherUid = teachersList[teacherPosition].second
         val studentIds = studentIdsRaw.split(",").map { it.trim() }.filter { it.isNotEmpty() }
 
         val lessonData = hashMapOf(
@@ -62,7 +68,8 @@ class AssignLessonActivity : AppCompatActivity() {
             "teacherId" to teacherUid,
             "minAttendancePercentage" to minAttendance,
             "assignedStudents" to studentIds,
-            "createdAt" to com.google.firebase.Timestamp.now()
+            "createdAt" to com.google.firebase.Timestamp.now(),
+            "activeToken" to ""
         )
 
         db.collection("Lessons").add(lessonData)

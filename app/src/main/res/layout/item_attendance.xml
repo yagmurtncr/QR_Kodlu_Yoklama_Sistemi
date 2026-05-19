@@ -14,27 +14,15 @@
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:gravity="center_vertical"
-        android:padding="12dp">
+        android:padding="16dp">
 
-        <!-- Öğrenci Profil Avatarı (Modern Stil) -->
-        <FrameLayout
-            android:layout_width="50dp"
-            android:layout_height="50dp">
-            <View
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:background="@drawable/gradient_background"
-                android:backgroundTint="@color/brand_blue_light"
-                android:alpha="0.2"/>
-            <ImageView
-                android:id="@+id/ivStudentAvatar"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:src="@android:drawable/ic_menu_myplaces"
-                app:tint="@color/brand_blue"
-                android:padding="10dp"
-                android:contentDescription="Öğrenci Avatar" />
-        </FrameLayout>
+        <ImageView
+            android:id="@+id/ivStatusIcon"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:src="@android:drawable/checkbox_on_background"
+            app:tint="@color/success_green"
+            android:contentDescription="Status" />
 
         <LinearLayout
             android:layout_width="0dp"
@@ -44,53 +32,36 @@
             android:layout_marginStart="16dp">
 
             <TextView
-                android:id="@+id/tvStudentName"
+                android:id="@+id/tvAttendanceLessonName"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Ahmet Yılmaz"
+                android:text="Ders Adı"
                 android:textSize="17sp"
                 android:textStyle="bold"
                 android:textColor="@color/text_main"/>
 
             <TextView
-                android:id="@+id/tvStudentId"
+                android:id="@+id/tvAttendanceDate"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="170423825"
+                android:text="Tarih"
                 android:textSize="13sp"
                 android:textColor="@color/text_sub"
                 android:layout_marginTop="2dp"/>
         </LinearLayout>
 
-        <LinearLayout
+        <TextView
+            android:id="@+id/tvAttendanceStatus"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:gravity="end">
-
-            <!-- Durum Etiketi (Badge) -->
-            <TextView
-                android:id="@+id/tvStatusBadge"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="GELDİ"
-                android:textSize="11sp"
-                android:textStyle="bold"
-                android:paddingHorizontal="12dp"
-                android:paddingVertical="6dp"
-                android:background="@drawable/gradient_background"
-                android:backgroundTint="#E8F5E9"
-                android:textColor="@color/success_green"/>
-
-            <TextView
-                android:id="@+id/tvTime"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="14:05"
-                android:textSize="12sp"
-                android:textColor="@color/text_sub"
-                android:layout_marginTop="6dp"/>
-        </LinearLayout>
+            android:text="Geldi"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            android:paddingHorizontal="12dp"
+            android:paddingVertical="6dp"
+            android:background="@drawable/gradient_background"
+            android:backgroundTint="#E8F5E9"
+            android:textColor="@color/success_green"/>
 
     </LinearLayout>
 </androidx.cardview.widget.CardView>

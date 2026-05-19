@@ -67,4 +67,48 @@
         app:layout_constraintStart_toStartOf="parent"
         android:contentDescription="Kapat" />
 
+    <!-- Debug: Ders ve Öğrenci Konum Bilgileri (Top Overlay) -->
+    <LinearLayout
+        android:id="@+id/llLocationInfo"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="12dp"
+        android:background="#CC000000"
+        app:layout_constraintTop_toBottomOf="@+id/btnCloseScanner"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <TextView
+            android:id="@+id/tvLessonCoords"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Ders: -"
+            android:textColor="@color/white"
+            android:textSize="13sp"
+            android:singleLine="true"
+            android:ellipsize="end" />
+
+        <TextView
+            android:id="@+id/tvStudentCoords"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Öğrenci: -"
+            android:textColor="@color/white"
+            android:textSize="13sp"
+            android:singleLine="true"
+            android:ellipsize="end"
+            android:layout_marginTop="4dp" />
+
+        <TextView
+            android:id="@+id/tvDistance"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Mesafe: -"
+            android:textColor="@color/white"
+            android:textSize="13sp"
+            android:layout_marginTop="4dp" />
+
+    </LinearLayout>
+
 </androidx.constraintlayout.widget.ConstraintLayout>

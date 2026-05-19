@@ -3,6 +3,7 @@ package com.example.qr_kodlu_yoklama_sistemi.ui.auth
 import android.content.Intent
 import android.os.Bundle
 import android.util.Patterns
+import android.util.Log
 import android.view.View
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -85,10 +86,44 @@ class LoginActivity : AppCompatActivity() {
                     startActivity(intent)
                     overridePendingTransition(R.anim.fade_in, android.R.anim.fade_out)
                     finish()
+                } else {
+                    // Eğer Users koleksiyonunda doküman yoksa, otomatik olarak basit bir kullanıcı dokümanı oluşturmayı dene
+                    Log.i("LoginActivity", "User document not found for uid=$uid — creating default user doc")
+                    val current = auth.currentUser
+                    val email = current?.email ?: ""
+                    val fullName = when {
+                        !current?.displayName.isNullOrBlank() -> current?.displayName ?: ""
+                        email.contains("@") -> email.substringBefore("@")
+                        else -> "Öğrenci"
+                    }
+                    val userMap = hashMapOf<String, Any>(
+                        "uid" to uid,
+                        "email" to email,
+                        "fullName" to fullName,
+                        "name" to fullName,
+                        "studentName" to fullName,
+                        "role" to "Student"
+                    )
+                    db.collection("Users").document(uid).set(userMap)
+                        .addOnSuccessListener {
+                            // Oluşturduktan sonra normal yönlendirmeyi tekrar dene
+                            val intent = Intent(this, StudentHomeActivity::class.java)
+                            intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                            startActivity(intent)
+                            overridePendingTransition(R.anim.fade_in, android.R.anim.fade_out)
+                            finish()
+                        }
+                        .addOnFailureListener { e ->
+                            Log.e("LoginActivity", "Failed to create user document for uid=$uid: ${e.message}")
+                            Toast.makeText(this, "Kullanıcı verisi oluşturulamadı: ${e.message}", Toast.LENGTH_LONG).show()
+                            auth.signOut()
+                        }
                 }
             }
             .addOnFailureListener { e ->
-                Toast.makeText(this, "Rol kontrolü başarısız: ${e.message}", Toast.LENGTH_SHORT).show()
+                Log.e("LoginActivity", "Failed to read user document for uid=$uid: ${e.message}")
+                Toast.makeText(this, "Kullanıcı bilgisi okunamadı: ${e.message}", Toast.LENGTH_LONG).show()
+                auth.signOut()
             }
     }
 }

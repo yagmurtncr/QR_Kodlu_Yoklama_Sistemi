@@ -3,7 +3,6 @@ package com.example.qr_kodlu_yoklama_sistemi.ui.student
 import android.content.Intent
 import android.graphics.Color
 import android.os.Bundle
-import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.qr_kodlu_yoklama_sistemi.databinding.ActivityStudentHomeBinding
@@ -26,15 +25,37 @@ class StudentHomeActivity : AppCompatActivity() {
         binding = ActivityStudentHomeBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        val userEmail = auth.currentUser?.email
-        binding.tvWelcomeStudent.text = "Hoş Geldin,\n$userEmail"
+        loadStudentName()
 
         setupRecyclerView()
         fetchStudentAttendance()
 
-        binding.btnScanQR.setOnClickListener {
+        // ID Düzeltildi: cardScanQR
+        binding.cardScanQR.setOnClickListener {
             startActivity(Intent(this, QRScannerActivity::class.java))
         }
+    }
+
+    private fun loadStudentName() {
+        val uid = auth.currentUser?.uid ?: return
+
+        db.collection("Users").document(uid).get()
+            .addOnSuccessListener { doc ->
+                val displayName = listOf(
+                    doc.getString("fullName"),
+                    doc.getString("studentName"),
+                    doc.getString("name"),
+                    auth.currentUser?.displayName,
+                    auth.currentUser?.email?.substringBefore("@")
+                ).firstOrNull { !it.isNullOrBlank() } ?: "Öğrenci"
+                binding.tvWelcomeStudent.text = "Hoş Geldin,\n$displayName"
+            }
+            .addOnFailureListener {
+                val fallbackName = auth.currentUser?.displayName
+                    ?: auth.currentUser?.email?.substringBefore("@")
+                    ?: "Öğrenci"
+                binding.tvWelcomeStudent.text = "Hoş Geldin,\n$fallbackName"
+            }
     }
 
     private fun setupRecyclerView() {
@@ -45,17 +66,12 @@ class StudentHomeActivity : AppCompatActivity() {
 
     private fun fetchStudentAttendance() {
         val userId = auth.currentUser?.uid ?: return
-
         db.collection("Attendances")
             .whereEqualTo("userId", userId)
-            .addSnapshotListener { snapshots, e ->
-                if (e != null) return@addSnapshotListener
-
+            .addSnapshotListener { snapshots, _ ->
                 attendanceList.clear()
                 snapshots?.let {
-                    for (doc in it) {
-                        attendanceList.add(doc.data)
-                    }
+                    for (doc in it) { attendanceList.add(doc.data) }
                     adapter.updateList(attendanceList)
                     updateChart(attendanceList.size)
                 }
@@ -63,22 +79,18 @@ class StudentHomeActivity : AppCompatActivity() {
     }
 
     private fun updateChart(attendanceCount: Int) {
-        // Test verisi: Toplam 20 ders olduğunu varsayalım
         val totalLessons = 20
-        val absentCount = totalLessons - attendanceCount
-
+        val absentCount = if (totalLessons > attendanceCount) totalLessons - attendanceCount else 0
         val entries = ArrayList<PieEntry>()
         entries.add(PieEntry(attendanceCount.toFloat(), "Katılım"))
         entries.add(PieEntry(absentCount.toFloat(), "Devamsızlık"))
 
         val dataSet = PieDataSet(entries, "")
-        dataSet.colors = listOf(Color.parseColor("#4CAF50"), Color.parseColor("#F44336"))
+        dataSet.colors = listOf(Color.parseColor("#1A73E8"), Color.parseColor("#D93025"))
         dataSet.valueTextColor = Color.WHITE
-        dataSet.valueTextSize = 14f
-
-        val data = PieData(dataSet)
-        binding.pieChart.data = data
-        binding.pieChart.centerText = "Yoklama Durumu"
+        
+        binding.pieChart.data = PieData(dataSet)
+        binding.pieChart.centerText = "Yoklama"
         binding.pieChart.description.isEnabled = false
         binding.pieChart.animateY(1000)
         binding.pieChart.invalidate()

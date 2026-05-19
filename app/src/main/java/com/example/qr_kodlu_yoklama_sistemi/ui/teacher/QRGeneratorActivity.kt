@@ -6,6 +6,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.location.Location
+import android.net.Uri
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -14,8 +15,13 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import com.example.qr_kodlu_yoklama_sistemi.R
 import com.example.qr_kodlu_yoklama_sistemi.databinding.ActivityQrGeneratorBinding
+import com.example.qr_kodlu_yoklama_sistemi.location.LocationPolicy
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
+import com.google.android.gms.location.Priority
+import com.google.android.gms.tasks.CancellationTokenSource
+import com.google.firebase.firestore.SetOptions
+import java.util.Locale
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.MultiFormatWriter
@@ -24,6 +30,10 @@ import java.text.SimpleDateFormat
 import java.util.*
 
 class QRGeneratorActivity : AppCompatActivity() {
+
+    companion object {
+        private const val REQUEST_LOCATION_PERMISSION = 1001
+    }
 
     private lateinit var binding: ActivityQrGeneratorBinding
     private val db = FirebaseFirestore.getInstance()
@@ -63,7 +73,14 @@ class QRGeneratorActivity : AppCompatActivity() {
 
         binding.btnOpenWebQR.setOnClickListener {
             db.collection("Lessons").document(lessonId!!).update("webDisplayActive", true)
-            Toast.makeText(this, "Web QR Aktif!", Toast.LENGTH_SHORT).show()
+                .addOnSuccessListener {
+                    val webUrl = buildWebQrUrl(lessonId!!)
+                    Toast.makeText(this, "Web QR aktif edildi. URL: $webUrl", Toast.LENGTH_LONG).show()
+                    startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(webUrl)))
+                }
+                .addOnFailureListener { e ->
+                    Toast.makeText(this, "Web QR aktif edilemedi: ${e.message}", Toast.LENGTH_LONG).show()
+                }
         }
 
         binding.btnViewList.setOnClickListener {
@@ -77,17 +94,80 @@ class QRGeneratorActivity : AppCompatActivity() {
 
     @SuppressLint("MissingPermission")
     private fun saveTeacherLocation() {
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+        if (LocationPolicy.isLocationPermissionGranted(this)) {
             fusedLocationClient.lastLocation.addOnSuccessListener { location: Location? ->
-                location?.let {
-                    db.collection("Lessons").document(lessonId!!).update(
-                        "latitude", it.latitude,
-                        "longitude", it.longitude
-                    )
+                val resolvedLocation = LocationPolicy.resolveForDevice(location)
+                if (resolvedLocation != null) {
+                    persistTeacherLocation(resolvedLocation)
+                } else {
+                    requestTeacherCurrentLocation()
                 }
+            }.addOnFailureListener {
+                requestTeacherCurrentLocation()
             }
         } else {
-            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.ACCESS_FINE_LOCATION), 1001)
+            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.ACCESS_FINE_LOCATION), REQUEST_LOCATION_PERMISSION)
+        }
+    }
+
+    @SuppressLint("MissingPermission")
+    private fun requestTeacherCurrentLocation() {
+        val cts = CancellationTokenSource()
+        fusedLocationClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, cts.token)
+            .addOnSuccessListener { curLoc: Location? ->
+                val resolvedLocation = LocationPolicy.resolveForDevice(curLoc)
+                if (resolvedLocation != null) {
+                    persistTeacherLocation(resolvedLocation)
+                } else {
+                    if (LocationPolicy.isEmulatorDevice()) {
+                        persistTeacherLocation(LocationPolicy.defaultDemoLocation())
+                    } else {
+                        binding.tvTeacherCoords.text = "Konum: alınamadı"
+                    }
+                }
+            }
+            .addOnFailureListener {
+                if (LocationPolicy.isEmulatorDevice()) {
+                    persistTeacherLocation(LocationPolicy.defaultDemoLocation())
+                } else {
+                    binding.tvTeacherCoords.text = "Konum: alınamadı"
+                }
+            }
+    }
+
+    private fun persistTeacherLocation(location: Location) {
+        val lat = location.latitude
+        val lon = location.longitude
+        binding.tvTeacherCoords.text = "Konum: ${LocationPolicy.describe(location)}"
+        db.collection("Lessons").document(lessonId!!)
+            .set(
+                mapOf(
+                    "latitude" to lat,
+                    "longitude" to lon
+                ),
+                SetOptions.merge()
+            )
+            .addOnFailureListener {
+                Toast.makeText(this, "Öğretmen konumu kaydedilemedi: ${it.message}", Toast.LENGTH_SHORT).show()
+            }
+    }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == REQUEST_LOCATION_PERMISSION) {
+            val granted = grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED
+            if (granted) {
+                saveTeacherLocation()
+            } else if (LocationPolicy.isEmulatorDevice()) {
+                persistTeacherLocation(LocationPolicy.defaultDemoLocation())
+            } else {
+                binding.tvTeacherCoords.text = "Konum: izin verilmedi"
+                Toast.makeText(this, "Konum izni olmadan öğretmen konumu kaydedilemez", Toast.LENGTH_SHORT).show()
+            }
         }
     }
 
@@ -105,6 +185,10 @@ class QRGeneratorActivity : AppCompatActivity() {
         } catch (e: Exception) {
             e.printStackTrace()
         }
+    }
+
+    private fun buildWebQrUrl(lessonId: String): String {
+        return "https://qr-kodlu-yoklama-takip-sistemi.web.app/?lessonId=$lessonId"
     }
 
     override fun onDestroy() {
